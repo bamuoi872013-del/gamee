@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bá Mười 3D Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: #ffffff;
+            font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.4); padding: 10px 20px; border-radius: 10px;
+        }
+    </style>
+    <!-- Thư viện đồ họa 3D Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui">Điểm 3D: <span id="score" style="color: #f9d56e;">0</span></div>
+
+    <script>
+        // 1. KHỞI TẠO KHÔNG GIAN 3D
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f1016);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 7, 10);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. ÁNH SÁNG 3D
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 12, 8);
+        scene.add(dirLight);
+        scene.add(new THREE.AmbientLight(0x404040, 1.5));
+
+        // 3. SÀN ĐẤT 3D
+        const floorGeo = new THREE.PlaneGeometry(20, 20);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1b1e2b, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Grid kẻ ô vuông sàn
+        const grid = new THREE.GridHelper(20, 20, 0xff007f, 0x33384a);
+        grid.position.y = 0.01;
+        scene.add(grid);
+
+        // 4. NHÂN VẬT 3D (Khối màu đỏ)
+        const playerGeo = new THREE.BoxGeometry(1, 1, 1);
+        const playerMat = new THREE.MeshStandardMaterial({ color: 0xff0055, roughness: 0.3 });
+        const player = new THREE.Mesh(playerGeo, playerMat);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // 5. KIM CƯƠNG VÀNG 3D (Vật phẩm)
+        const itemGeo = new THREE.OctahedronGeometry(0.6);
+        const itemMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.5, roughness: 0.2 });
+        const item = new THREE.Mesh(itemGeo, itemMat);
+        spawnItem();
+        scene.add(item);
+
+        let score = 0;
+        const keys = {};
+
+        function spawnItem() {
+            item.position.x = (Math.random() - 0.5) * 16;
+            item.position.z = (Math.random() - 0.5) * 16;
+            item.position.y = 0.7;
+        }
+
+        // Bắt sự kiện phím điều khiển (Mũi tên / WASD)
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        // 6. VÒNG LẶP XỬ LÝ GAME (Game Loop)
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const speed = 0.15;
+            if ((keys['arrowup'] || keys['w']) && player.position.z > -9) player.position.z -= speed;
+            if ((keys['arrowdown'] || keys['s']) && player.position.z < 9) player.position.z += speed;
+            if ((keys['arrowleft'] || keys['a']) && player.position.x > -9) player.position.x -= speed;
+            if ((keys['arrowright'] || keys['d']) && player.position.x < 9) player.position.x += speed;
+
+            // Xoay kim cương 3D
+            item.rotation.y += 0.03;
+            item.rotation.x += 0.01;
+
+            // Kiểm tra khoảng cách va chạm (Ăn kim cương)
+            if (player.position.distanceTo(item.position) < 1.2) {
+                score += 10;
+                document.getElementById('score').innerText = score;
+                spawnItem();
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Tự co giãn theo màn hình
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
