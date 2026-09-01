@@ -2,236 +2,470 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FF Mini 3D - Online 2 Người & Google Auth</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FF Cyberpunk Mobile - 3 Chế Độ Chơi</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { font-family: Arial, sans-serif; background: #0f1016; color: #fff; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #020205; color: #fff; overflow: hidden; touch-action: none; }
 
-        /* GIAO DIỆN ĐĂNG NHẬP & PHÒNG CHƠI */
-        #lobby {
+        /* SẢNH CHỜ (LOBBY UI) */
+        #lobbyUI {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(15, 16, 22, 0.95); display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 15px; z-index: 100; pointer-events: none;
         }
-        .box {
-            background: #1a1c24; border: 1px solid #ff0055; padding: 25px;
-            border-radius: 16px; text-align: center; width: 320px;
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
+        .interactive { pointer-events: auto; }
+        
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(10, 10, 20, 0.85); border: 1px solid rgba(0,255,204,0.3);
+            padding: 10px 20px; border-radius: 12px; backdrop-filter: blur(10px);
         }
-        h2 { color: #ff0055; margin-bottom: 15px; }
-        .user-info { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .user-info img { width: 36px; height: 36px; border-radius: 50%; }
-        input {
-            width: 100%; padding: 10px; margin: 8px 0; background: #0f1016;
-            border: 1px solid #333; color: #fff; border-radius: 8px; text-align: center;
-        }
-        button {
-            width: 100%; padding: 10px; margin-top: 8px; background: #ff0055;
-            border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer;
-        }
-        button:hover { background: #ff3377; }
+        .player-badge { font-size: 16px; font-weight: 900; color: #00ffcc; }
+        .currency { font-weight: bold; color: #ffd700; font-size: 14px; }
 
-        /* HUD GAME */
-        #hud {
-            position: absolute; top: 15px; left: 15px; z-index: 10;
-            background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 10px;
+        .lobby-content { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; gap: 15px; }
+        
+        /* CHỌN CHẾ ĐỘ & TÙY CHỌN TEAM */
+        .mode-selector {
+            background: rgba(15, 12, 25, 0.85); border: 1px solid #00ffcc;
+            padding: 12px; border-radius: 14px; width: 280px; backdrop-filter: blur(8px);
         }
+        .mode-card {
+            padding: 8px 10px; margin: 5px 0; background: rgba(255,255,255,0.05);
+            border: 1px solid #444; border-radius: 8px; cursor: pointer; transition: 0.2s;
+        }
+        .mode-card.active { border-color: #ff0055; background: rgba(255, 0, 85, 0.2); box-shadow: 0 0 10px rgba(255,0,85,0.3); }
+        .team-option { display: flex; gap: 8px; margin-top: 5px; }
+        .team-btn {
+            flex: 1; padding: 4px; font-size: 11px; font-weight: bold; text-align: center;
+            background: rgba(255,255,255,0.1); border: 1px solid #666; border-radius: 4px; cursor: pointer;
+        }
+        .team-btn.active { border-color: #00ffcc; background: #00ffcc; color: #000; }
+
+        /* BẢNG ĐỘ SKIN */
+        .skin-selector {
+            background: rgba(15, 12, 25, 0.85); border: 1px solid #ff0055;
+            padding: 12px; border-radius: 14px; width: 220px; backdrop-filter: blur(8px);
+        }
+        .skin-option {
+            display: flex; justify-content: space-between; padding: 6px 10px; margin: 4px 0;
+            background: rgba(255,255,255,0.05); border: 1px solid #333; border-radius: 6px; cursor: pointer;
+        }
+        .skin-option.active { border-color: #00ffcc; background: rgba(0, 255, 204, 0.2); }
+
+        .start-btn {
+            width: 160px; padding: 14px; font-size: 18px; font-weight: 900;
+            color: #fff; background: linear-gradient(45deg, #ff0055, #ff5500);
+            border: none; border-radius: 12px; cursor: pointer; text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+        }
+
+        /* HUD TRONG GAME & ĐIỂM TỬ CHIẾN */
+        #gameHUD { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; display: none; }
+        .hud-stats {
+            position: absolute; top: 12px; left: 12px;
+            background: rgba(5,5,15,0.8); border: 1px solid #00ffcc; padding: 8px 12px; border-radius: 8px;
+        }
+        .bar-outer { width: 140px; height: 10px; background: #1a1a2e; border-radius: 5px; overflow: hidden; margin-top: 4px; }
+        .hp-inner { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0055, #ff5500); }
+
+        #clashScoreboard {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,10,20,0.85); border: 1px solid #ffd700; padding: 6px 20px;
+            border-radius: 10px; font-size: 16px; font-weight: 900; display: flex; gap: 15px;
+        }
+
+        /* CONTROL MOBILE */
+        #touchControls { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: auto; }
+        #joystickZone { position: absolute; bottom: 25px; left: 25px; width: 110px; height: 110px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(0,255,204,0.4); }
+        #joystickKnob { position: absolute; top: 32px; left: 32px; width: 45px; height: 45px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 10px #00ffcc; }
+
+        .btn-touch {
+            position: absolute; width: 60px; height: 60px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 12px; color: white; border: 2px solid #fff;
+        }
+        #btnShoot { bottom: 35px; right: 35px; width: 75px; height: 75px; background: rgba(255, 0, 85, 0.7); border-color: #ff0055; font-size: 16px; }
+        #btnGloo { bottom: 120px; right: 40px; background: rgba(0, 206, 209, 0.7); border-color: #00ced1; }
+
         #crosshair {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #00ffcc; font-size: 26px; pointer-events: none; z-index: 10;
+            width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%; pointer-events: none;
         }
-        .hidden { display: none !important; }
+        #killFeed { position: absolute; top: 55px; right: 15px; display: flex; flex-direction: column; gap: 4px; }
+        .kill-msg { background: rgba(255,0,85,0.85); padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 11px; }
     </style>
-
-    <!-- Thư viện Three.js, PeerJS (Kết nối 2 người) và Google API -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-    <!-- MÀN HÌNH CHỜ / LOBBY -->
-    <div id="lobby">
-        <div class="box">
-            <h2>FF MINI ONLINE</h2>
+    <!-- SẢNH CHỜ GIAO DIỆN UI -->
+    <div id="lobbyUI">
+        <div class="header-bar interactive">
+            <div class="player-badge">👤 BÁ MƯỜI</div>
+            <div class="currency">🪙 <span id="userCoins">1000</span> XU</div>
+        </div>
 
-            <!-- Đăng nhập Google -->
-            <div id="g_id_onload"
-                data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-                data-callback="handleCredentialResponse">
+        <div class="lobby-content interactive">
+            <!-- CHỌN CHẾ ĐỘ -->
+            <div class="mode-selector">
+                <h4 style="color:#00ffcc; font-size:13px; margin-bottom:5px;">🎮 CHẾ ĐỘ CHƠI</h4>
+                
+                <div class="mode-card active" onclick="setMode('BR', this)">
+                    <div style="font-weight:bold; font-size:13px;">💥 SINH TỒN (50 Người)</div>
+                    <div style="font-size:10px; color:#aaa;">Sinh tồn trên đảo rộng.</div>
+                    <div class="team-option">
+                        <div class="team-btn active" onclick="setTeamSize(1, this, event)">SOLO (1)</div>
+                        <div class="team-btn" onclick="setTeamSize(2, this, event)">DUO (2)</div>
+                        <div class="team-btn" onclick="setTeamSize(4, this, event)">SQUAD (4)</div>
+                    </div>
+                </div>
+
+                <div class="mode-card" onclick="setMode('CS', this)">
+                    <div style="font-weight:bold; font-size:13px;">⚔️ TỬ CHIẾN (4v4)</div>
+                    <div style="font-size:10px; color:#aaa;">Đội đạt 4 điểm thắng trước sẽ WIN!</div>
+                </div>
+
+                <div class="mode-card" onclick="setMode('TRAIN', this)">
+                    <div style="font-weight:bold; font-size:13px;">🎯 HUẤN LUYỆN</div>
+                    <div style="font-size:10px; color:#aaa;">Tập bắn mục tiêu di động.</div>
+                </div>
             </div>
-            <div id="googleBtn" class="g_id_signin" data-type="standard" style="margin-bottom:15px;"></div>
 
-            <div id="userInfo" class="user-info hidden">
-                <img id="userAvatar" src="" alt="Avatar">
-                <span id="userName" style="font-weight:bold; color:#00ffcc;"></span>
+            <!-- CHỌN SKIN -->
+            <div class="skin-selector">
+                <h4 style="color:#ff0055; font-size:13px; margin-bottom:5px;">🎯 TỦ SÚNG</h4>
+                <div class="skin-option active" onclick="selectSkin('DEFAULT', this)">
+                    <span style="font-size:12px;">Mặc Định</span>
+                </div>
+                <div class="skin-option" onclick="selectSkin('ICE_DRAGON', this)">
+                    <span style="font-size:12px; color:#00ffcc;">AK Rồng Băng 🐉</span>
+                </div>
+                <div class="skin-option" onclick="selectSkin('FIRE_PYTHON', this)">
+                    <span style="font-size:12px; color:#ff0055;">M1887 Mãng Xà 🐍</span>
+                </div>
             </div>
 
-            <hr style="border-color:#333; margin:15px 0;">
-
-            <!-- Tạo / Nhập mã Phòng -->
-            <p style="font-size:13px; color:#aaa;">Mã phòng của bạn (Gửi cho bạn bè):</p>
-            <b id="myPeerId" style="color:#00ffcc; font-size:18px;">Đang tải mã...</b>
-            
-            <input type="text" id="joinIdInput" placeholder="Dán mã phòng của bạn bè vào đây...">
-            <button onclick="connectToFriend()">Vào phòng bạn bè</button>
-            <button onclick="startSoloGame()" style="background:#333;">Chơi Đơn (Offline)</button>
+            <button class="start-btn" onclick="startGame()">VÀO TRẬN</button>
         </div>
     </div>
 
     <!-- HUD TRONG GAME -->
-    <div id="hud">
-        Người chơi: <b id="playerDisplayName" style="color:#00ffcc;">Bá Mười</b><br>
-        Kết nối: <b id="status" style="color:#ff0055;">Độc hành</b>
+    <div id="gameHUD">
+        <div class="hud-stats">
+            <div style="font-size:11px; color:#aaa;">CHẾ ĐỘ: <b id="modeHUD" style="color:#00ffcc;">SINH TỒN</b></div>
+            <div class="bar-outer"><div id="hpFill" class="hp-inner"></div></div>
+            <div style="margin-top:4px; font-size:12px; font-weight:bold;">KILLS: <span id="killCount" style="color:#ff0055;">0</span> | KEO: <span id="glooHUD" style="color:#00ffcc;">5</span></div>
+            <div style="font-size:11px; color:#ffd700; margin-top:2px;">XU TRẬN: +<span id="matchCoins">0</span></div>
+        </div>
+
+        <div id="clashScoreboard" style="display:none;">
+            <span style="color:#00ffcc;">ĐỘI BẠN: <span id="scoreTeamA">0</span></span>
+            <span style="color:#666;">|</span>
+            <span style="color:#ff0055;">ĐỘI ĐỊCH: <span id="scoreTeamB">0</span></span>
+        </div>
+
+        <div id="touchControls">
+            <div id="joystickZone"><div id="joystickKnob"></div></div>
+            <div id="btnShoot" class="btn-touch">🔥</div>
+            <div id="btnGloo" class="btn-touch">🛡️ KEO</div>
+        </div>
+
+        <div id="crosshair"></div>
+        <div id="killFeed"></div>
     </div>
-    <div id="crosshair">+</div>
 
     <script>
-        let localPlayerName = "Bá Mười";
+        // --- 1. DỮ LIỆU GAME & BIẾN TRẠNG THÁI ---
+        let currentMode = 'BR'; // BR, CS, TRAIN
+        let teamSize = 1;
+        let selectedSkin = 'DEFAULT';
+        let gameState = 'LOBBY';
+        let kills = 0, playerHp = 100, glooWallsLeft = 5;
+        let matchCoins = 0, totalCoins = 1000;
+        let teamAScore = 0, teamBScore = 0; // Điểm Tử Chiến
+        let yaw = 0;
 
-        // 1. XỬ LÝ ĐĂNG NHẬP GOOGLE
-        function handleCredentialResponse(response) {
-            // Giải mã Token của Google
-            const responsePayload = parseJwt(response.credential);
-            localPlayerName = responsePayload.name;
-            
-            document.getElementById('userName').innerText = responsePayload.name;
-            document.getElementById('userAvatar').src = responsePayload.picture;
-            document.getElementById('userInfo').classList.remove('hidden');
-            document.getElementById('googleBtn').classList.add('hidden');
-            document.getElementById('playerDisplayName').innerText = localPlayerName;
+        const SKINS = {
+            DEFAULT: { color: 0x111111, dmg: 35 },
+            ICE_DRAGON: { color: 0x00ffff, dmg: 55 },
+            FIRE_PYTHON: { color: 0xff0033, dmg: 45 }
+        };
+
+        function setMode(mode, el) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-card').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
         }
 
-        function parseJwt(token) {
-            var base64Url = token.split('.')[1];
-            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            return JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+        function setTeamSize(size, el, ev) {
+            ev.stopPropagation();
+            teamSize = size;
+            document.querySelectorAll('.team-btn').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
         }
 
-        // 2. KẾT NỐI ONLINE 2 NGƯỜI (PEERJS)
-        const peer = new Peer();
-        let conn = null;
-
-        peer.on('open', (id) => {
-            document.getElementById('myPeerId').innerText = id;
-        });
-
-        // Khi có bạn bè kết nối vào phòng mình
-        peer.on('connection', (connection) => {
-            conn = connection;
-            setupMultiplayer();
-        });
-
-        // Chủ chủ động nhập ID kết nối sang máy bạn
-        function connectToFriend() {
-            const friendId = document.getElementById('joinIdInput').value.trim();
-            if (friendId) {
-                conn = peer.connect(friendId);
-                setupMultiplayer();
-            }
+        function selectSkin(key, el) {
+            selectedSkin = key;
+            document.querySelectorAll('.skin-option').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
         }
 
-        function setupMultiplayer() {
-            document.getElementById('status').innerText = "Đã kết nối với Bạn!";
-            document.getElementById('status').style.color = "#00ffcc";
-            
-            conn.on('data', (data) => {
-                // Nhận vị trí từ bạn bè
-                if (remotePlayerMesh) {
-                    remotePlayerMesh.position.set(data.x, data.y, data.z);
-                    remotePlayerMesh.rotation.y = data.yaw;
-                }
-            });
-
-            document.getElementById('lobby').classList.add('hidden');
-            lockPointer();
-        }
-
-        function startSoloGame() {
-            document.getElementById('lobby').classList.add('hidden');
-            lockPointer();
-        }
-
-        // 3. KHỞI TẠO GAME 3D (THREE.JS)
+        // --- 2. ĐỒ HỌA THREE.JS ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a24);
+        scene.background = new THREE.Color(0x030308);
+        scene.fog = new THREE.FogExp2(0x030308, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(20, 40, 20);
-        scene.add(dirLight);
+        scene.add(new THREE.AmbientLight(0x222244, 1.5));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(20, 40, 20);
+        scene.add(sun);
 
-        // Sàn đấu
-        const floorGeo = new THREE.PlaneGeometry(100, 100);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2d3436 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(120, 120),
+            new THREE.MeshStandardMaterial({ color: 0x0a0a14, roughness: 0.4 })
+        );
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
-        scene.add(new THREE.GridHelper(100, 50, 0xff0055, 0x444444));
+        scene.add(new THREE.GridHelper(120, 40, 0x00ffcc, 0xff0055));
 
-        // Nhân vật bản thân (Player 1)
+        // Player & Gun
         const playerPivot = new THREE.Group();
         scene.add(playerPivot);
-        const pMat = new THREE.MeshStandardMaterial({ color: 0x0099ff });
-        const pMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), pMat);
-        pMesh.position.y = 1;
-        playerPivot.add(pMesh);
+        const playerMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x00ffcc }));
+        playerMesh.position.y = 1.1;
+        playerPivot.add(playerMesh);
 
-        camera.position.set(0, 3, 4.5);
+        const gunMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 1.2), gunMat);
+        gun.position.set(0.5, 1.3, -0.6);
+        playerPivot.add(gun);
+
+        camera.position.set(0, 3.5, 5);
         playerPivot.add(camera);
 
-        // Nhân vật Bạn bè (Player 2)
-        const remoteMat = new THREE.MeshStandardMaterial({ color: 0xff0055 });
-        const remotePlayerMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), remoteMat);
-        remotePlayerMesh.position.set(0, 1, -5);
-        scene.add(remotePlayerMesh);
+        // --- 3. QUẢN LÝ BOTS VÀ CHẾ ĐỘ CHƠI ---
+        const bots = [];
+        const glooWalls = [];
 
-        // Điều khiển
-        let isLocked = false, yaw = 0;
-        const keys = {};
+        function clearBots() {
+            bots.forEach(b => scene.remove(b));
+            bots.length = 0;
+        }
 
-        function lockPointer() { renderer.domElement.requestPointerLock(); }
-        document.addEventListener('pointerlockchange', () => { isLocked = document.pointerLockElement === renderer.domElement; });
+        function spawnBot(team = 'B') {
+            const bot = new THREE.Group();
+            const color = team === 'A' ? 0x00aaff : 0xff0055;
+            const bMesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.3, 1.3), new THREE.MeshStandardMaterial({ color }));
+            bMesh.position.y = 1.15;
+            bot.add(bMesh);
+            bot.position.set((Math.random()-0.5)*90, 0, (Math.random()-0.5)*90);
+            bot.hp = 100;
+            bot.team = team;
+            scene.add(bot);
+            bots.push(bot);
+        }
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isLocked) return;
-            yaw -= e.movementX * 0.003;
-            playerPivot.rotation.y = yaw;
+        function initBotsForMode() {
+            clearBots();
+            if(currentMode === 'BR') {
+                // Sinh Tồn: Spawn 50 Bot (đại diện cho 50 người giao tranh)
+                for(let i=0; i<50; i++) spawnBot('B');
+            } else if(currentMode === 'CS') {
+                // Tử Chiến 4v4: Đội A (3 AI đồng đội), Đội B (4 AI địch)
+                for(let i=0; i<3; i++) spawnBot('A');
+                for(let i=0; i<4; i++) spawnBot('B');
+            } else {
+                for(let i=0; i<5; i++) spawnBot('B');
+            }
+        }
+
+        // --- 4. BẮN SÚNG & CỘNG XU ---
+        const raycaster = new THREE.Raycaster();
+        function shoot() {
+            if(gameState !== 'PLAYING') return;
+            gun.position.z = -0.3;
+            setTimeout(() => gun.position.z = -0.6, 50);
+
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const targets = bots.map(b => b.children[0]);
+            const intersects = raycaster.intersectObjects(targets);
+
+            if(intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const botGroup = hitMesh.parent;
+                if(botGroup.team === 'A') return; // Không bắn đồng đội
+
+                botGroup.hp -= SKINS[selectedSkin].dmg;
+                hitMesh.material.color.setHex(0xffffff);
+                setTimeout(() => hitMesh.material.color.setHex(0xff0055), 80);
+
+                if(botGroup.hp <= 0) {
+                    scene.remove(botGroup);
+                    bots.splice(bots.indexOf(botGroup), 1);
+                    kills++;
+                    
+                    // Cộng Xu: 100 Xu mỗi Kill
+                    matchCoins += 100;
+                    document.getElementById('killCount').innerText = kills;
+                    document.getElementById('matchCoins').innerText = matchCoins;
+
+                    const feed = document.getElementById('killFeed');
+                    const msg = document.createElement('div');
+                    msg.className = 'kill-msg';
+                    msg.innerText = `🎯 Bá Mười gục Bot địch! (+100 Xu)`;
+                    feed.appendChild(msg);
+                    setTimeout(() => msg.remove(), 1500);
+
+                    checkRoundStatus();
+                }
+            }
+        }
+
+        // Kiểm tra kết quả trận/vòng đấu Tử Chiến
+        function checkRoundStatus() {
+            if(currentMode === 'CS') {
+                const enemyLeft = bots.filter(b => b.team === 'B').length;
+                if(enemyLeft === 0) {
+                    teamAScore++;
+                    matchCoins += 500; // Xu thưởng thắng vòng: +500 Xu
+                    updateCSBoard();
+                }
+            }
+        }
+
+        function updateCSBoard() {
+            document.getElementById('scoreTeamA').innerText = teamAScore;
+            document.getElementById('scoreTeamB').innerText = teamBScore;
+
+            if(teamAScore >= 4) {
+                alert(`VICTORY! Đội bạn đã thắng Tử Chiến 4v4! Nhận ${matchCoins} Xu.`);
+                endGame();
+            } else if(teamBScore >= 4) {
+                alert(`DEFEAT! Đội địch đã thắng. Nhận ${matchCoins} Xu.`);
+                endGame();
+            } else {
+                // Tiếp tục vòng tiếp theo
+                initBotsForMode();
+            }
+        }
+
+        function placeGlooWall() {
+            if (glooWallsLeft <= 0) return;
+            glooWallsLeft--;
+            document.getElementById('glooHUD').innerText = glooWallsLeft;
+
+            const wall = new THREE.Mesh(
+                new THREE.BoxGeometry(5, 3.5, 0.6),
+                new THREE.MeshStandardMaterial({ color: 0x00f7ff, transparent: true, opacity: 0.85 })
+            );
+            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            wall.position.copy(playerPivot.position).addScaledVector(forward, 3.5);
+            wall.position.y = 1.75;
+            wall.rotation.y = yaw;
+            scene.add(wall);
+            glooWalls.push(wall);
+        }
+
+        // --- 5. ĐIỀU KHIỂN MOBILE JOYSTICK ---
+        let moveX = 0, moveY = 0;
+        const knob = document.getElementById('joystickKnob');
+        const zone = document.getElementById('joystickZone');
+
+        zone.addEventListener('touchstart', (e) => handleJoystick(e.touches[0]));
+        zone.addEventListener('touchmove', (e) => handleJoystick(e.touches[0]));
+        zone.addEventListener('touchend', () => {
+            knob.style.top = '32px'; knob.style.left = '32px';
+            moveX = 0; moveY = 0;
         });
 
-        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        function handleJoystick(touch) {
+            const rect = zone.getBoundingClientRect();
+            let dx = touch.clientX - (rect.left + rect.width / 2);
+            let dy = touch.clientY - (rect.top + rect.height / 2);
+            const dist = Math.min(Math.hypot(dx, dy), 35);
+            const angle = Math.atan2(dy, dx);
+            
+            knob.style.left = (32 + Math.cos(angle) * dist) + 'px';
+            knob.style.top = (32 + Math.sin(angle) * dist) + 'px';
+            moveX = Math.cos(angle) * (dist / 35);
+            moveY = Math.sin(angle) * (dist / 35);
+        }
 
-        // Vòng lặp cập nhật Game & Gửi dữ liệu Online
+        let lastTouchX = 0;
+        document.getElementById('touchControls').addEventListener('touchstart', (e) => {
+            if(e.target.id === 'touchControls') lastTouchX = e.touches[0].clientX;
+        });
+        document.getElementById('touchControls').addEventListener('touchmove', (e) => {
+            if(e.target.id === 'touchControls') {
+                const dx = e.touches[0].clientX - lastTouchX;
+                yaw -= dx * 0.005;
+                playerPivot.rotation.y = yaw;
+                lastTouchX = e.touches[0].clientX;
+            }
+        });
+
+        document.getElementById('btnShoot').addEventListener('touchstart', shoot);
+        document.getElementById('btnGloo').addEventListener('touchstart', placeGlooWall);
+
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if(e.key.toLowerCase() === 'e') placeGlooWall();
+        });
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        window.addEventListener('mousedown', () => {
+            if(document.pointerLockElement === renderer.domElement) shoot();
+        });
+
+        // --- 6. KHỞI CHẠY & VÒNG LẶP GAME ---
+        function startGame() {
+            gameState = 'PLAYING';
+            kills = 0; matchCoins = 0; playerHp = 100; teamAScore = 0; teamBScore = 0;
+            gunMat.color.setHex(SKINS[selectedSkin].color);
+
+            document.getElementById('lobbyUI').style.display = 'none';
+            document.getElementById('gameHUD').style.display = 'block';
+            document.getElementById('modeHUD').innerText = currentMode === 'BR' ? `SINH TỒN (${teamSize==1?'SOLO':teamSize==2?'DUO':'SQUAD'})` : (currentMode === 'CS' ? 'TỬ CHIẾN 4v4' : 'HUẤN LUYỆN');
+            document.getElementById('clashScoreboard').style.display = currentMode === 'CS' ? 'flex' : 'none';
+
+            initBotsForMode();
+            if (!('ontouchstart' in window)) renderer.domElement.requestPointerLock();
+        }
+
+        function endGame() {
+            gameState = 'LOBBY';
+            totalCoins += matchCoins;
+            document.getElementById('userCoins').innerText = totalCoins;
+            document.getElementById('lobbyUI').style.display = 'flex';
+            document.getElementById('gameHUD').style.display = 'none';
+            if(document.pointerLockElement) document.exitPointerLock();
+        }
+
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isLocked) {
-                const speed = 0.2;
+            if(gameState === 'LOBBY') {
+                const time = Date.now() * 0.0008;
+                camera.position.x = Math.sin(time) * 6;
+                camera.position.z = Math.cos(time) * 6;
+                camera.lookAt(0, 1.2, 0);
+            } else if(gameState === 'PLAYING') {
+                camera.position.set(0, 3.5, 5);
+                const speed = 0.22;
                 const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
 
-                if (keys['w']) playerPivot.position.addScaledVector(forward, speed);
-                if (keys['s']) playerPivot.position.addScaledVector(forward, -speed);
-                if (keys['a']) playerPivot.position.addScaledVector(right, -speed);
-                if (keys['d']) playerPivot.position.addScaledVector(right, speed);
-
-                // Gửi tọa độ cho bạn bè qua mạng P2P
-                if (conn && conn.open) {
-                    conn.send({
-                        x: playerPivot.position.x,
-                        y: playerPivot.position.y + 1,
-                        z: playerPivot.position.z,
-                        yaw: yaw
-                    });
-                }
+                if (keys['w'] || moveY < -0.2) playerPivot.position.addScaledVector(forward, speed);
+                if (keys['s'] || moveY > 0.2) playerPivot.position.addScaledVector(forward, -speed);
+                if (keys['a'] || moveX < -0.2) playerPivot.position.addScaledVector(right, -speed);
+                if (keys['d'] || moveX > 0.2) playerPivot.position.addScaledVector(right, speed);
             }
 
             renderer.render(scene, camera);
