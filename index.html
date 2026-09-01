@@ -3,106 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bá Mười 3D Game</title>
+    <title>FF Mini 3D - Online 2 Người & Google Auth</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
-        #ui {
-            position: absolute; top: 20px; left: 20px; color: #ffffff;
-            font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            background: rgba(0,0,0,0.4); padding: 10px 20px; border-radius: 10px;
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { font-family: Arial, sans-serif; background: #0f1016; color: #fff; overflow: hidden; }
+
+        /* GIAO DIỆN ĐĂNG NHẬP & PHÒNG CHƠI */
+        #lobby {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 16, 22, 0.95); display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100;
         }
+        .box {
+            background: #1a1c24; border: 1px solid #ff0055; padding: 25px;
+            border-radius: 16px; text-align: center; width: 320px;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
+        }
+        h2 { color: #ff0055; margin-bottom: 15px; }
+        .user-info { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .user-info img { width: 36px; height: 36px; border-radius: 50%; }
+        input {
+            width: 100%; padding: 10px; margin: 8px 0; background: #0f1016;
+            border: 1px solid #333; color: #fff; border-radius: 8px; text-align: center;
+        }
+        button {
+            width: 100%; padding: 10px; margin-top: 8px; background: #ff0055;
+            border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer;
+        }
+        button:hover { background: #ff3377; }
+
+        /* HUD GAME */
+        #hud {
+            position: absolute; top: 15px; left: 15px; z-index: 10;
+            background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 10px;
+        }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #00ffcc; font-size: 26px; pointer-events: none; z-index: 10;
+        }
+        .hidden { display: none !important; }
     </style>
-    <!-- Thư viện đồ họa 3D Three.js -->
+
+    <!-- Thư viện Three.js, PeerJS (Kết nối 2 người) và Google API -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-    <div id="ui">Điểm 3D: <span id="score" style="color: #f9d56e;">0</span></div>
+    <!-- MÀN HÌNH CHỜ / LOBBY -->
+    <div id="lobby">
+        <div class="box">
+            <h2>FF MINI ONLINE</h2>
+
+            <!-- Đăng nhập Google -->
+            <div id="g_id_onload"
+                data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                data-callback="handleCredentialResponse">
+            </div>
+            <div id="googleBtn" class="g_id_signin" data-type="standard" style="margin-bottom:15px;"></div>
+
+            <div id="userInfo" class="user-info hidden">
+                <img id="userAvatar" src="" alt="Avatar">
+                <span id="userName" style="font-weight:bold; color:#00ffcc;"></span>
+            </div>
+
+            <hr style="border-color:#333; margin:15px 0;">
+
+            <!-- Tạo / Nhập mã Phòng -->
+            <p style="font-size:13px; color:#aaa;">Mã phòng của bạn (Gửi cho bạn bè):</p>
+            <b id="myPeerId" style="color:#00ffcc; font-size:18px;">Đang tải mã...</b>
+            
+            <input type="text" id="joinIdInput" placeholder="Dán mã phòng của bạn bè vào đây...">
+            <button onclick="connectToFriend()">Vào phòng bạn bè</button>
+            <button onclick="startSoloGame()" style="background:#333;">Chơi Đơn (Offline)</button>
+        </div>
+    </div>
+
+    <!-- HUD TRONG GAME -->
+    <div id="hud">
+        Người chơi: <b id="playerDisplayName" style="color:#00ffcc;">Bá Mười</b><br>
+        Kết nối: <b id="status" style="color:#ff0055;">Độc hành</b>
+    </div>
+    <div id="crosshair">+</div>
 
     <script>
-        // 1. KHỞI TẠO KHÔNG GIAN 3D
+        let localPlayerName = "Bá Mười";
+
+        // 1. XỬ LÝ ĐĂNG NHẬP GOOGLE
+        function handleCredentialResponse(response) {
+            // Giải mã Token của Google
+            const responsePayload = parseJwt(response.credential);
+            localPlayerName = responsePayload.name;
+            
+            document.getElementById('userName').innerText = responsePayload.name;
+            document.getElementById('userAvatar').src = responsePayload.picture;
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('googleBtn').classList.add('hidden');
+            document.getElementById('playerDisplayName').innerText = localPlayerName;
+        }
+
+        function parseJwt(token) {
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            return JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+        }
+
+        // 2. KẾT NỐI ONLINE 2 NGƯỜI (PEERJS)
+        const peer = new Peer();
+        let conn = null;
+
+        peer.on('open', (id) => {
+            document.getElementById('myPeerId').innerText = id;
+        });
+
+        // Khi có bạn bè kết nối vào phòng mình
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupMultiplayer();
+        });
+
+        // Chủ chủ động nhập ID kết nối sang máy bạn
+        function connectToFriend() {
+            const friendId = document.getElementById('joinIdInput').value.trim();
+            if (friendId) {
+                conn = peer.connect(friendId);
+                setupMultiplayer();
+            }
+        }
+
+        function setupMultiplayer() {
+            document.getElementById('status').innerText = "Đã kết nối với Bạn!";
+            document.getElementById('status').style.color = "#00ffcc";
+            
+            conn.on('data', (data) => {
+                // Nhận vị trí từ bạn bè
+                if (remotePlayerMesh) {
+                    remotePlayerMesh.position.set(data.x, data.y, data.z);
+                    remotePlayerMesh.rotation.y = data.yaw;
+                }
+            });
+
+            document.getElementById('lobby').classList.add('hidden');
+            lockPointer();
+        }
+
+        function startSoloGame() {
+            document.getElementById('lobby').classList.add('hidden');
+            lockPointer();
+        }
+
+        // 3. KHỞI TẠO GAME 3D (THREE.JS)
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f1016);
+        scene.background = new THREE.Color(0x1a1a24);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 7, 10);
-        camera.lookAt(0, 0, 0);
-
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. ÁNH SÁNG 3D
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(5, 12, 8);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(20, 40, 20);
         scene.add(dirLight);
-        scene.add(new THREE.AmbientLight(0x404040, 1.5));
 
-        // 3. SÀN ĐẤT 3D
-        const floorGeo = new THREE.PlaneGeometry(20, 20);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1b1e2b, roughness: 0.8 });
+        // Sàn đấu
+        const floorGeo = new THREE.PlaneGeometry(100, 100);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2d3436 });
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
+        scene.add(new THREE.GridHelper(100, 50, 0xff0055, 0x444444));
 
-        // Grid kẻ ô vuông sàn
-        const grid = new THREE.GridHelper(20, 20, 0xff007f, 0x33384a);
-        grid.position.y = 0.01;
-        scene.add(grid);
+        // Nhân vật bản thân (Player 1)
+        const playerPivot = new THREE.Group();
+        scene.add(playerPivot);
+        const pMat = new THREE.MeshStandardMaterial({ color: 0x0099ff });
+        const pMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), pMat);
+        pMesh.position.y = 1;
+        playerPivot.add(pMesh);
 
-        // 4. NHÂN VẬT 3D (Khối màu đỏ)
-        const playerGeo = new THREE.BoxGeometry(1, 1, 1);
-        const playerMat = new THREE.MeshStandardMaterial({ color: 0xff0055, roughness: 0.3 });
-        const player = new THREE.Mesh(playerGeo, playerMat);
-        player.position.y = 0.5;
-        scene.add(player);
+        camera.position.set(0, 3, 4.5);
+        playerPivot.add(camera);
 
-        // 5. KIM CƯƠNG VÀNG 3D (Vật phẩm)
-        const itemGeo = new THREE.OctahedronGeometry(0.6);
-        const itemMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.5, roughness: 0.2 });
-        const item = new THREE.Mesh(itemGeo, itemMat);
-        spawnItem();
-        scene.add(item);
+        // Nhân vật Bạn bè (Player 2)
+        const remoteMat = new THREE.MeshStandardMaterial({ color: 0xff0055 });
+        const remotePlayerMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), remoteMat);
+        remotePlayerMesh.position.set(0, 1, -5);
+        scene.add(remotePlayerMesh);
 
-        let score = 0;
+        // Điều khiển
+        let isLocked = false, yaw = 0;
         const keys = {};
 
-        function spawnItem() {
-            item.position.x = (Math.random() - 0.5) * 16;
-            item.position.z = (Math.random() - 0.5) * 16;
-            item.position.y = 0.7;
-        }
+        function lockPointer() { renderer.domElement.requestPointerLock(); }
+        document.addEventListener('pointerlockchange', () => { isLocked = document.pointerLockElement === renderer.domElement; });
 
-        // Bắt sự kiện phím điều khiển (Mũi tên / WASD)
+        document.addEventListener('mousemove', (e) => {
+            if (!isLocked) return;
+            yaw -= e.movementX * 0.003;
+            playerPivot.rotation.y = yaw;
+        });
+
         window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
         window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-        // 6. VÒNG LẶP XỬ LÝ GAME (Game Loop)
+        // Vòng lặp cập nhật Game & Gửi dữ liệu Online
         function animate() {
             requestAnimationFrame(animate);
 
-            const speed = 0.15;
-            if ((keys['arrowup'] || keys['w']) && player.position.z > -9) player.position.z -= speed;
-            if ((keys['arrowdown'] || keys['s']) && player.position.z < 9) player.position.z += speed;
-            if ((keys['arrowleft'] || keys['a']) && player.position.x > -9) player.position.x -= speed;
-            if ((keys['arrowright'] || keys['d']) && player.position.x < 9) player.position.x += speed;
+            if (isLocked) {
+                const speed = 0.2;
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
 
-            // Xoay kim cương 3D
-            item.rotation.y += 0.03;
-            item.rotation.x += 0.01;
+                if (keys['w']) playerPivot.position.addScaledVector(forward, speed);
+                if (keys['s']) playerPivot.position.addScaledVector(forward, -speed);
+                if (keys['a']) playerPivot.position.addScaledVector(right, -speed);
+                if (keys['d']) playerPivot.position.addScaledVector(right, speed);
 
-            // Kiểm tra khoảng cách va chạm (Ăn kim cương)
-            if (player.position.distanceTo(item.position) < 1.2) {
-                score += 10;
-                document.getElementById('score').innerText = score;
-                spawnItem();
+                // Gửi tọa độ cho bạn bè qua mạng P2P
+                if (conn && conn.open) {
+                    conn.send({
+                        x: playerPivot.position.x,
+                        y: playerPivot.position.y + 1,
+                        z: playerPivot.position.z,
+                        yaw: yaw
+                    });
+                }
             }
 
             renderer.render(scene, camera);
         }
         animate();
 
-        // Tự co giãn theo màn hình
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
